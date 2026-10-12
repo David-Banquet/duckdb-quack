@@ -1,0 +1,27 @@
+# name: test/sql/database_size.test
+# description: PRAGMA database_size works while a quack catalog is attached
+# group: [sql]
+
+require quack
+
+require httpfs
+
+statement ok con1
+call quack_serve('quack:localhost', token='asdf');
+
+statement ok con2
+attach 'quack:localhost' as my_remote (token 'asdf');
+
+statement ok con2
+PRAGMA database_size;
+
+query IIII con2
+SELECT database_size, block_size, total_blocks, wal_size FROM pragma_database_size() WHERE database_name = 'my_remote';
+----
+0 bytes	0	0	0 bytes
+
+statement ok con2
+detach my_remote;
+
+statement ok con1
+call quack_stop('quack:localhost');

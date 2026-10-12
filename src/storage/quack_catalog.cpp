@@ -220,7 +220,8 @@ unique_ptr<LogicalOperator> QuackCatalog::BindCreateIndex(Binder &binder, Create
 }
 
 DatabaseSize QuackCatalog::GetDatabaseSize(ClientContext &context) {
-	throw NotImplementedException("GetDatabaseSize not implemented yet");
+	// the database is stored on the server, so it takes no local space, like an in-memory database
+	return DatabaseSize();
 }
 
 unique_ptr<TableRef> QuackCatalog::RemoteExecute(ClientContext &context, unique_ptr<QueryNode> node) {
