@@ -220,7 +220,7 @@ unique_ptr<LogicalOperator> QuackCatalog::BindCreateIndex(Binder &binder, Create
 }
 
 DatabaseSize QuackCatalog::GetDatabaseSize(ClientContext &context) {
-	// the database is stored on the server, so it takes no local space, like an in-memory database
+	// the data is stored on the server and takes no local disk space
 	return DatabaseSize();
 }
 
