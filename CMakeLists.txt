@@ -28,6 +28,10 @@ include_directories(
 
 add_subdirectory(src)
 
+if(BUILD_UNITTESTS)
+  add_subdirectory(test/cpp)
+endif()
+
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 

@@ -24,4 +24,7 @@ static constexpr idx_t QUACK_PREPARE_INLINE_ROWS_DEFAULT = 24576;
 idx_t QuackGetUBigintSetting(ClientContext &context, const char *name, idx_t default_value);
 idx_t QuackGetUBigintSetting(DatabaseInstance &db, const char *name, idx_t default_value);
 
+//! Resolve the server budget for each FETCH or INSERT stream buffer. 0 = no byte limit.
+idx_t QuackServerStreamBufferBytes(DatabaseInstance &db);
+
 } // namespace duckdb

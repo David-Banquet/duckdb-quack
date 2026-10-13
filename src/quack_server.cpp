@@ -6,7 +6,6 @@
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/valid_checker.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
-#include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/storage/temporary_file_manager.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 
@@ -21,7 +20,6 @@
 #include "quack_storage.hpp"
 #include "quack_session_state.hpp"
 #include "quack_fetch_collector.hpp"
-#include "quack_rebalancer_sink.hpp"
 #include "quack_settings.hpp"
 
 #include "mbedtls_wrapper.hpp"
@@ -679,16 +677,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 			connection.query_uuid = prepare_request_message.QueryUUID();
 		}
 
-		auto stream = make_shared_ptr<QuackResultStream>();
-		// One buffer exists for each connection, so a fixed size does not suit every server. Core
-		// also sizes an optional buffer at a quarter of the memory limit. 0 still means no limit.
-		auto producer_bytes =
-		    QuackGetUBigintSetting(db, "quack_server_stream_buffer_bytes", QUACK_SERVER_STREAM_BUFFER_BYTES_DEFAULT);
-		auto memory_cap = BufferManager::GetBufferManager(db).GetOperatorMemoryLimit() / 4;
-		if (producer_bytes > 0 && memory_cap > 0) {
-			producer_bytes = MinValue<idx_t>(producer_bytes, memory_cap);
-		}
-		stream->buffer.SetCapacity(producer_bytes);
+		auto stream = make_shared_ptr<QuackResultStream>(QuackServerStreamBufferBytes(db));
 		// Internal catalog traffic carries uuid 0. It must never displace the client's retained result.
 		bool client_query = prepare_request_message.QueryUUID() != hugeint_t {0, 0};
 		bool retain_result = client_query && ServerCachingEnabled(db);
@@ -914,8 +903,13 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 			if (!send_data_message.BatchIndex().IsValid()) {
 				return make_uniq<ErrorResponse>("send_data_request is missing its batch index");
 			}
+			idx_t batch_bytes = 0;
+			for (auto &chunk : incoming_chunks) {
+				batch_bytes += chunk->GetAllocationSize();
+			}
 			// The claim buffer drops a duplicate index, so a retry of the same batch is safe.
-			stream->buffer.PushBatch(send_data_message.BatchIndex().GetIndex(), std::move(incoming_chunks));
+			stream->buffer.PushBatch(send_data_message.BatchIndex().GetIndex(), std::move(incoming_chunks),
+			                         batch_bytes);
 		}
 
 		if (!send_data_message.TotalBatches().IsValid()) {

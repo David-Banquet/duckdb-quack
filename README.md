@@ -140,3 +140,9 @@ Different tests can be created for DuckDB extensions. The primary way of testing
 ```bash
 make test
 ```
+
+The C++ stream-buffer tests check capacity enforcement and waiting SEND_DATA requests:
+
+```bash
+cmake --build build/release --target test_quack_buffer
+```
