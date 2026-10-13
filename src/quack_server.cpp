@@ -83,7 +83,7 @@ static void AbortDetachedStatement(QuackConnection &connection, DetachedResultSt
 static void AbortStatement(QuackConnection &connection, const string &reason) {
 	DetachedResultStream detached;
 	{
-		lock_guard<mutex> guard(connection.statement.lock);
+		annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 		detached.stream = std::move(connection.statement.stream);
 		detached.thread = std::move(connection.statement.thread);
 		if (detached.stream) {
@@ -699,7 +699,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		{
 			// Install under one lock. A concurrent PREPARE can install a producer after the abort
 			// above, and an assignment over a joinable std::thread would stop the process.
-			lock_guard<mutex> guard(connection.statement.lock);
+			annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 			superseded.stream = std::move(connection.statement.stream);
 			superseded.thread = std::move(connection.statement.thread);
 			connection.statement.stream = stream;
@@ -803,7 +803,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		hugeint_t stream_uuid;
 		ErrorData abort_error;
 		{
-			lock_guard<mutex> guard(connection.statement.lock);
+			annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 			stream = connection.statement.stream;
 			stream_uuid = connection.statement.query_uuid;
 			abort_error = connection.statement.abort_error;
@@ -902,7 +902,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		}
 		{
 			// the statement can fail before its scan sees the stream error
-			lock_guard<mutex> guard(connection.statement.lock);
+			annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 			if (connection.statement.stream && connection.statement.stream->buffer.HasError()) {
 				return make_uniq<ErrorResponse>(connection.statement.stream->buffer.GetError());
 			}
@@ -940,7 +940,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		bool is_wildcard = cancel_request_message.query_uuid == hugeint_t {0, 0};
 		hugeint_t active_query_uuid;
 		{
-			lock_guard<mutex> guard(connection.statement.lock);
+			annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 			active_query_uuid = connection.statement.query_uuid;
 		}
 		if (!is_wildcard && active_query_uuid != cancel_request_message.query_uuid) {

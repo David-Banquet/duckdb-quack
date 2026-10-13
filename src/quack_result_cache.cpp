@@ -57,7 +57,7 @@ unique_ptr<QuackResultCache> ExpireCacheIfStale(QuackConnection &connection, tim
 	// an expired unfinished stream must fail loudly on later fetches instead of silently truncating
 	shared_ptr<QuackResultStream> active_stream;
 	{
-		lock_guard<mutex> guard(connection.statement.lock);
+		annotated_lock_guard<annotated_mutex> guard(connection.statement.lock);
 		active_stream = connection.statement.stream;
 	}
 	if (cache->stream && cache->stream == active_stream && !cache->stream->buffer.Exhausted()) {

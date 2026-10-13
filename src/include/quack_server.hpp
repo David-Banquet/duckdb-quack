@@ -34,12 +34,12 @@ enum class QuackQueryState : uint8_t { IDLE, ACTIVE, FINISHED, CANCELLED, QUACK_
 //! The stream the connection's active query fills, one at a time. The query runs on a background
 //! thread with a rebalancing result collector, and the FETCH handlers drain the stream's buffer.
 struct QuackStatementState {
-	mutex lock;
-	shared_ptr<QuackResultStream> stream;
-	std::thread thread;
-	hugeint_t query_uuid = 0;
+	annotated_mutex lock;
+	shared_ptr<QuackResultStream> stream DUCKDB_GUARDED_BY(lock);
+	std::thread thread DUCKDB_GUARDED_BY(lock);
+	hugeint_t query_uuid DUCKDB_GUARDED_BY(lock) = 0;
 	//! A late FETCH for this query_uuid gets this error. The stream and its payloads can then go away.
-	ErrorData abort_error;
+	ErrorData abort_error DUCKDB_GUARDED_BY(lock);
 };
 
 struct QuackConnection {
