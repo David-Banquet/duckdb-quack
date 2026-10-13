@@ -1,11 +1,11 @@
 #include "quack_rebalancer_sink.hpp"
 
-#include "quack_settings.hpp"
-
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/parallel/base_pipeline_event.hpp"
 #include "duckdb/parallel/executor_task.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
+
+#include "quack_settings.hpp"
 
 namespace duckdb {
 

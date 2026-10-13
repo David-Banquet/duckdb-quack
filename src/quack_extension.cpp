@@ -235,8 +235,8 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                          LogicalType::UBIGINT, Value::UBIGINT(0));
 
 	config.AddExtensionOption("quack_server_stream_buffer_bytes",
-	                          "Server-side per-stream byte budget: FETCH counts serialized payload bytes, INSERT "
-	                          "counts decoded chunk allocations; 0 disables the limit",
+	                          "Server-side per-stream byte budget, at most a quarter of memory_limit: FETCH counts "
+	                          "serialized payload bytes, INSERT counts decoded chunk allocations; 0 disables the limit",
 	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_SERVER_STREAM_BUFFER_BYTES_DEFAULT), nullptr,
 	                          SetScope::GLOBAL);
 

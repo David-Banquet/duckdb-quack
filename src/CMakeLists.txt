@@ -18,9 +18,9 @@ add_library(
   quack_scan.cpp
   quack_scan_from_client.cpp
   quack_secret.cpp
-  quack_settings.cpp
   quack_send_data.cpp
   quack_server.cpp
+  quack_settings.cpp
   quack_ssl_key_generator.cpp
   quack_start_stop.cpp
   quack_storage.cpp
