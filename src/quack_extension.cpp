@@ -21,7 +21,7 @@
 #include "quack_client.hpp"
 #include "quack_extension.hpp"
 #include "quack_log.hpp"
-#include "quack_rebalancer_sink.hpp"
+#include "quack_settings.hpp"
 #include "quack_scan.hpp"
 #include "quack_scan_from_client.hpp"
 #include "quack_secret.hpp"

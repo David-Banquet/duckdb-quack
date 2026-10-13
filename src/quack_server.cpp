@@ -22,6 +22,7 @@
 #include "quack_session_state.hpp"
 #include "quack_fetch_collector.hpp"
 #include "quack_rebalancer_sink.hpp"
+#include "quack_settings.hpp"
 
 #include "mbedtls_wrapper.hpp"
 
