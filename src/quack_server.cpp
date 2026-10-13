@@ -683,7 +683,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		// One buffer exists for each connection, so a fixed size does not suit every server. Core
 		// also sizes an optional buffer at a quarter of the memory limit. 0 still means no limit.
 		auto producer_bytes =
-		    QuackGetUBigintSetting(db, "quack_fetch_producer_buffer_bytes", QUACK_FETCH_PRODUCER_BUFFER_BYTES_DEFAULT);
+		    QuackGetUBigintSetting(db, "quack_server_stream_buffer_bytes", QUACK_SERVER_STREAM_BUFFER_BYTES_DEFAULT);
 		auto memory_cap = BufferManager::GetBufferManager(db).GetOperatorMemoryLimit() / 4;
 		if (producer_bytes > 0 && memory_cap > 0) {
 			producer_bytes = MinValue<idx_t>(producer_bytes, memory_cap);

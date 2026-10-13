@@ -234,10 +234,10 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                          "stressing out-of-order batch arrival on the server",
 	                          LogicalType::UBIGINT, Value::UBIGINT(0));
 
-	config.AddExtensionOption("quack_fetch_producer_buffer_bytes",
-	                          "Server-side cap on bytes buffered ahead by the fetch collector; the query "
-	                          "executor blocks when the client falls this far behind",
-	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_FETCH_PRODUCER_BUFFER_BYTES_DEFAULT));
+	config.AddExtensionOption("quack_server_stream_buffer_bytes",
+	                          "Server-side per-stream byte budget for buffered data; 0 disables the limit",
+	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_SERVER_STREAM_BUFFER_BYTES_DEFAULT), nullptr,
+	                          SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_server_max_connections",
 	                          "Maximum concurrent connections the RPC server accepts; beyond this new "
