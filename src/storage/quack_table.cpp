@@ -42,6 +42,16 @@ QuackTableSet::QuackTableSet(ClientContext &context, QuackSchemaCatalogEntry &pa
 			if (info->type != CatalogType::TABLE_ENTRY) {
 				throw InternalException("Expected a CREATE TABLE");
 			}
+			// The server enforces foreign keys, and binding them would look up tables in the unregistered catalog
+			auto &table_info = info->Cast<CreateTableInfo>();
+			vector<unique_ptr<Constraint>> constraints;
+			for (auto &constraint : table_info.constraints) {
+				if (constraint->type != ConstraintType::FOREIGN_KEY) {
+					constraints.push_back(std::move(constraint));
+				}
+			}
+			table_info.constraints = std::move(constraints);
+
 			// Bind to resolve the types. SKIP_BINDING leaves the column DEFAULT expressions unbound:
 			// binding them here would resolve functions through the catalog we are still constructing,
 			// which is not registered yet - a computed DEFAULT (now(), 1 + 0, nextval(...)) then aborts
