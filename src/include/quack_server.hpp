@@ -94,6 +94,12 @@ struct QuackConnection {
 	atomic<QuackQueryState> query_state {QuackQueryState::IDLE};
 	timestamp_t query_started_at {0};
 
+	//! Only an ACTIVE query can finish, so a concurrent CANCEL is not overwritten
+	void MarkQueryFinished() {
+		auto expected = QuackQueryState::ACTIVE;
+		query_state.compare_exchange_strong(expected, QuackQueryState::FINISHED);
+	}
+
 	QuackStatementState statement;
 };
 
