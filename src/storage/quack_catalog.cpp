@@ -150,6 +150,13 @@ void QuackCatalog::Invalidate() {
 	invalidated_version++;
 }
 
+void QuackCatalog::InvalidateIfChangedSince(idx_t version) {
+	lock_guard<mutex> guard(snapshot_lock);
+	if (invalidated_version != version) {
+		invalidated_version++;
+	}
+}
+
 idx_t QuackCatalog::InvalidatedVersion() {
 	lock_guard<mutex> guard(snapshot_lock);
 	return invalidated_version;

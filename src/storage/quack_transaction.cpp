@@ -9,7 +9,8 @@ namespace duckdb {
 QuackTransaction::QuackTransaction(QuackCatalog &quack_catalog_p, TransactionManager &manager_p,
                                    ClientContext &context_p)
     : Transaction(manager_p, context_p), quack_catalog(quack_catalog_p),
-      transaction_state(QuackTransactionState::TRANSACTION_NOT_YET_STARTED) {
+      transaction_state(QuackTransactionState::TRANSACTION_NOT_YET_STARTED),
+      start_version(quack_catalog_p.InvalidatedVersion()) {
 }
 
 QuackTransaction::~QuackTransaction() {

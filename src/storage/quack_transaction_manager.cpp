@@ -1,4 +1,5 @@
 #include "storage/quack_transaction_manager.hpp"
+#include "storage/quack_catalog.hpp"
 
 namespace duckdb {
 
@@ -16,7 +17,12 @@ Transaction &QuackTransactionManager::StartTransaction(ClientContext &context) {
 }
 ErrorData QuackTransactionManager::CommitTransaction(ClientContext &context, Transaction &transaction) {
 	auto &quack_transaction = transaction.Cast<QuackTransaction>();
-	quack_transaction.Commit();
+	try {
+		quack_transaction.Commit();
+	} catch (...) {
+		quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
+		throw;
+	}
 	lock_guard<mutex> l(transaction_lock);
 	transactions.erase(transaction);
 	return ErrorData();
@@ -24,7 +30,13 @@ ErrorData QuackTransactionManager::CommitTransaction(ClientContext &context, Tra
 
 void QuackTransactionManager::RollbackTransaction(Transaction &transaction) {
 	auto &quack_transaction = transaction.Cast<QuackTransaction>();
-	quack_transaction.Rollback();
+	try {
+		quack_transaction.Rollback();
+	} catch (...) {
+		quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
+		throw;
+	}
+	quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
 	lock_guard<mutex> l(transaction_lock);
 	transactions.erase(transaction);
 }

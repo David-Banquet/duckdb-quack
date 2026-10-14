@@ -85,6 +85,7 @@ public:
 
 	void Refresh(ClientContext &context);
 	void Invalidate();
+	void InvalidateIfChangedSince(idx_t version);
 	idx_t InvalidatedVersion();
 
 private:

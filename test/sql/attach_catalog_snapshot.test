@@ -1,5 +1,5 @@
 # name: test/sql/attach_catalog_snapshot.test
-# description: the client catalog cache is replaced as a whole (#279)
+# description: the client catalog cache is replaced as a whole and follows rollbacks (#174, #279)
 # group: [sql]
 
 include test/template/quack_setup.test_template
@@ -9,6 +9,81 @@ attach {server} as rpc (token 'asdf')
 
 statement ok
 create table rpc.t as select 42 i
+
+# a rolled back DROP leaves the table visible to the next statement
+statement ok
+BEGIN
+
+statement ok
+drop table rpc.t
+
+statement ok
+ROLLBACK
+
+query I
+from rpc.t
+----
+42
+
+# a rolled back CREATE leaves nothing behind
+statement ok
+BEGIN
+
+statement ok
+create table rpc.ghost(i INT)
+
+statement ok
+create view rpc.ghost_view as select 1 i
+
+statement ok
+create schema rpc.ghost_schema
+
+statement ok
+ROLLBACK
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 'ghost'
+----
+0
+
+query I
+select count(*) from duckdb_views() where database_name = 'rpc' and view_name = 'ghost_view'
+----
+0
+
+query I
+select count(*) from duckdb_schemas() where database_name = 'rpc' and schema_name = 'ghost_schema'
+----
+0
+
+# the same through the catalog methods instead of the remote pushdown
+statement ok
+SET disabled_optimizers = 'remote_pushdown'
+
+statement ok
+BEGIN
+
+statement ok
+drop table rpc.t
+
+statement ok
+create table rpc.ghost(i INT)
+
+statement ok
+ROLLBACK
+
+query I
+from rpc.t
+----
+42
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 'ghost'
+----
+0
+
+statement ok
+RESET disabled_optimizers
 
 # DDL in a transaction is visible to the statements that follow it
 statement ok
