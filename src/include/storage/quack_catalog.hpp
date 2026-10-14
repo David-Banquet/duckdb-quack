@@ -12,6 +12,8 @@
 #include "storage/quack_schema.hpp"
 #include "quack_uri.hpp"
 
+#include <condition_variable>
+
 namespace duckdb {
 
 class QuackCatalog;
@@ -55,6 +57,7 @@ public:
 	DatabaseSize GetDatabaseSize(ClientContext &context) override;
 	bool InMemory() override;
 	string GetDBPath() override;
+	optional_idx GetCatalogVersion(ClientContext &context) override;
 
 	bool Supports(RemoteCapability capability) const override {
 		switch (capability) {
@@ -81,6 +84,8 @@ public:
 	shared_ptr<QuackClientConnection> GetClientConnection();
 
 	void Refresh(ClientContext &context);
+	void Invalidate();
+	idx_t InvalidatedVersion();
 
 private:
 	void DropSchema(ClientContext &context, DropInfo &info) override;
@@ -90,10 +95,18 @@ private:
 	unique_ptr<TableRef> CreateRemoteQueryRef(const string &sql, bool refresh_catalog, bool use_transaction = true);
 
 	QuackLoadCatalogData LoadCatalog(ClientContext &context);
+	QuackSchemaSet &GetSchemas(ClientContext &context);
+	shared_ptr<QuackSchemaSet> AcquireSnapshot(ClientContext &context);
+	bool ServesOwnConnection(ClientContext &context);
 
 private:
 	shared_ptr<QuackClientConnection> client_connection;
-	unique_ptr<QuackSchemaSet> schemas;
+	mutex snapshot_lock;
+	std::condition_variable snapshot_loaded;
+	shared_ptr<QuackSchemaSet> snapshot;
+	idx_t invalidated_version = 0;
+	idx_t loaded_version = 0;
+	optional_ptr<ClientContext> loading_context;
 };
 
 } // namespace duckdb

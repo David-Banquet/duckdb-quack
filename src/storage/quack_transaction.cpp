@@ -40,6 +40,19 @@ void QuackTransaction::Rollback() {
 	}
 }
 
+void QuackTransaction::Retain(shared_ptr<QuackSchemaSet> snapshot) {
+	lock_guard<mutex> guard(retained_lock);
+	if (retained_snapshots.empty() || retained_snapshots.back() != snapshot) {
+		retained_snapshots.push_back(std::move(snapshot));
+	}
+}
+
+optional_ptr<CatalogEntry> QuackTransaction::Retain(unique_ptr<CatalogEntry> entry) {
+	lock_guard<mutex> guard(retained_lock);
+	retained_entries.push_back(std::move(entry));
+	return retained_entries.back().get();
+}
+
 QuackTransaction &QuackTransaction::Get(ClientContext &context, Catalog &catalog) {
 	return Transaction::Get(context, catalog).Cast<QuackTransaction>();
 }
