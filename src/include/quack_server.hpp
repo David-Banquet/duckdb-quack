@@ -22,14 +22,11 @@ class ClientContext;
 class QuackMessage;
 class Connection;
 class MemoryStream;
-class QueryResult;
 class DatabaseInstance;
 struct QuackResultStream;
-class PreparedStatement;
-struct QuackInsertStream;
 class ErrorData;
 
-enum class QuackQueryState : uint8_t { IDLE, ACTIVE, FINISHED, CANCELLED, QUACK_ERROR };
+enum class QuackQueryState : uint8_t { IDLE, ACTIVE, FINISHED, CANCELLED };
 
 //! The stream the connection's active query fills, one at a time. The query runs on a background
 //! thread with a rebalancing result collector, and the FETCH handlers drain the stream's buffer.
@@ -147,7 +144,6 @@ public:
 	string CreateNewConnection(const string &connection_id, const string &client_id_hash,
 	                           idx_t heartbeat_timeout_seconds);
 	bool DisconnectConnection(const string &connection_id);
-	// TODO need something to destroy connections
 
 	string GenerateConnectionId();
 
@@ -225,8 +221,6 @@ public:
 
 private:
 	static void ListenThread(HttpQuackServer *server, const string &listen_host, uint16_t listen_port);
-
-	unique_ptr<QuackMessage> ReadMessage(MemoryStream &read_stream);
 
 	unique_ptr<duckdb_httplib_openssl::Server> server;
 	mutex state_lock;

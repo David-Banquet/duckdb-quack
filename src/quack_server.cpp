@@ -1,12 +1,8 @@
-#include "duckdb/common/render_tree.hpp"
-#include "duckdb/common/types/blob.hpp"
 #include "duckdb/logging/logger.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/valid_checker.hpp"
-#include "duckdb/parser/parsed_data/create_table_info.hpp"
-#include "duckdb/storage/temporary_file_manager.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 
 #include "duckdb/main/client_config.hpp"
@@ -17,7 +13,6 @@
 #include "quack_log.hpp"
 #include "quack_random.hpp"
 #include "quack_result_cache.hpp"
-#include "quack_storage.hpp"
 #include "quack_session_state.hpp"
 #include "quack_fetch_collector.hpp"
 #include "quack_settings.hpp"
@@ -804,14 +799,14 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		if (!stream || stream_uuid != fetch_request_message.QueryUUID()) {
 			return make_uniq<ErrorResponse>("Result has been closed");
 		}
-		if (fetch_request_message.batch_index == 0) {
+		if (fetch_request_message.BatchIndex() == 0) {
 			return make_uniq<ErrorResponse>("FETCH_REQUEST is missing its batch index");
 		}
 
 		// The request names its batch, so add back the batches PREPARE consumed inline. Served
 		// payloads stay until the client acks them, so a transport retry gets the SAME batch.
-		auto dense_index = fetch_request_message.batch_index + stream->prepare_batches;
-		auto dense_ack = fetch_request_message.ack_index + stream->prepare_batches;
+		auto dense_index = fetch_request_message.BatchIndex() + stream->prepare_batches;
+		auto dense_ack = fetch_request_message.AckIndex() + stream->prepare_batches;
 		{
 			lock_guard<mutex> guard(stream->serve_lock);
 			// The client has everything up to the ack and cannot ask for it again. A result cache
@@ -845,7 +840,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 						// write the header with the client-visible index, then keep the payload for a retry
 						FetchResponseMessage header_message;
 						header_message.SetChunkCount(entry.chunk_count);
-						header_message.SetBatchIndex(fetch_request_message.batch_index);
+						header_message.SetBatchIndex(fetch_request_message.BatchIndex());
 						served_start = QuackPrependHeader(*entry.payload, header_message);
 						shared_ptr<MemoryStream> payload(std::move(entry.payload));
 						stream->served.emplace(dense_index,

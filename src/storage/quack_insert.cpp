@@ -109,7 +109,7 @@ SinkCombineResultType QuackInsert::Combine(ExecutionContext &context, OperatorSi
 
 SinkFinalizeType QuackInsert::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
                                        OperatorSinkFinalizeInput &input) const {
-	// FINALIZE then carries the batch count, so the server can check the stream is complete.
+	// The terminal SEND_DATA then carries the batch count, so the server can check the stream is complete.
 	return QuackRebalancerFinalize(pipeline, event, context, input.global_state.Cast<QuackRebalancerGlobalState>());
 }
 
