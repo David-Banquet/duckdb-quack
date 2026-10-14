@@ -17,7 +17,7 @@ QuackStorageExtensionInfo &QuackStorageExtensionInfo::GetState(const DatabaseIns
 	auto &config = instance.config;
 	auto ext = StorageExtension::Find(config, STORAGE_EXTENSION_KEY);
 	if (!ext) {
-		throw std::runtime_error("Fatal error: couldn't find rpc extension state.");
+		throw std::runtime_error("Fatal error: couldn't find quack extension state.");
 	}
 	return *static_cast<QuackStorageExtensionInfo *>(ext->storage_info.get());
 }
