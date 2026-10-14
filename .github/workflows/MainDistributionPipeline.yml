@@ -13,6 +13,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    name: Prepare
+    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-slim' || 'ubuntu-slim' }}
+    outputs:
+      runners: ${{ steps.runners.outputs.runners }}
+    steps:
+      - name: Detect runners
+        id: runners
+        uses: duckdb/duckdb-ci/detect-runners@main
+
   duckdb-submodule-version:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     uses: duckdb/extension-ci-tools/.github/workflows/_submodule_version.yml@main
@@ -20,10 +31,12 @@ jobs:
   duckdb-stable-build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Build extension binaries
+    needs: prepare
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       ci_tools_version: main
       extension_name: quack
+      runners: ${{ needs.prepare.outputs.runners }}
       # Export QUACK_CLIENT_ID so quack_default_client_id_env.test (require-env gated) runs instead of skipping.
       test_config: '{"test_env_variables": {"QUACK_CLIENT_ID": "quack_env_client_id"}}'
 
