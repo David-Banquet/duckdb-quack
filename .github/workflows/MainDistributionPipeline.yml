@@ -5,6 +5,7 @@ name: Main Extension Distribution Pipeline
 on:
   push:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -13,9 +14,11 @@ concurrency:
 
 jobs:
   duckdb-submodule-version:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     uses: duckdb/extension-ci-tools/.github/workflows/_submodule_version.yml@main
 
   duckdb-stable-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Build extension binaries
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
@@ -25,6 +28,7 @@ jobs:
       test_config: '{"test_env_variables": {"QUACK_CLIENT_ID": "quack_env_client_id"}}'
 
   duckdb-stable-deploy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Deploy extension binaries
     needs:
       - duckdb-stable-build
@@ -37,6 +41,7 @@ jobs:
       deploy_versioned: ${{ startsWith(github.ref, 'refs/heads/v') || github.ref == 'refs/heads/main' }}
 
   code-quality-check:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Code Quality Check
     needs: duckdb-submodule-version
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@main
@@ -49,7 +54,7 @@ jobs:
   check-protocol-version:
     name: Check protocol & QUACK_VERSION
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     steps:
       - uses: actions/checkout@v4
         with:
