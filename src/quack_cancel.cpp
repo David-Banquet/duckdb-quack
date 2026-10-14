@@ -1,13 +1,9 @@
 #include "quack_cancel.hpp"
 #include "duckdb.hpp"
-#include "duckdb/main/database.hpp"
-#include "quack_startstop.hpp"
-#include "quack_storage.hpp"
 #include "quack_client.hpp"
 #include "quack_message.hpp"
-#include "quack_uri.hpp"
-#include "duckdb.hpp"
-#include "include/storage/quack_catalog.hpp"
+#include "storage/quack_catalog.hpp"
+
 namespace duckdb {
 
 struct QuackCancelBindData : FunctionData {

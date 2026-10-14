@@ -15,7 +15,7 @@
 #include "duckdb/storage/storage_extension.hpp"
 #include "storage/quack_optimizer.hpp"
 
-#include "include/storage/quack_catalog.hpp"
+#include "storage/quack_catalog.hpp"
 #include "quack_active_connections.hpp"
 #include "quack_clear_cache.hpp"
 #include "quack_client.hpp"
@@ -29,9 +29,6 @@
 #include "quack_startstop.hpp"
 #include "quack_storage.hpp"
 #include "quack_uri.hpp"
-#include "include/quack_startstop.hpp"
-#include "include/quack_storage.hpp"
-#include "include/quack_uri.hpp"
 
 namespace duckdb {
 

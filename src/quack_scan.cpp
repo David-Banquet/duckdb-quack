@@ -9,7 +9,7 @@
 #include "quack_scan.hpp"
 #include "quack_client.hpp"
 #include "quack_fetch_ahead.hpp"
-#include "include/storage/quack_catalog.hpp"
+#include "storage/quack_catalog.hpp"
 #include "storage/quack_transaction.hpp"
 
 #include <queue>
@@ -52,8 +52,7 @@ static unique_ptr<FunctionData> QuackScanBind(ClientContext &context, TableFunct
 		server_uri.SetSslFingerprint(ssl_fingerprint);
 	}
 
-	// Resolve auth token: prefer a quack secret scoped to this URI; fall back to the
-	// global rpc_default_token setting. Mirrors the logic in QuackCatalog::QuackCatalog.
+	// An explicit token wins; otherwise ConnectToServer takes it from a quack secret scoped to this URI.
 	string token;
 	if (input.named_parameters.find("token") != input.named_parameters.end()) {
 		token = input.named_parameters["token"].GetValue<string>();
@@ -178,7 +177,7 @@ struct QuackScanLocalState : public LocalTableFunctionState {
 	~QuackScanLocalState() override {
 	}
 
-	//! Server-assigned index of the batch currently being drained; surfaced via get_partition_data
+	//! Claimed FETCH index of the batch currently being drained; surfaced via get_partition_data
 	//! so order-preserving operators (CTAS, COPY TO) can run the scan in parallel without losing order.
 	optional_idx current_batch_index;
 
@@ -233,8 +232,6 @@ static string BuildPushdownQuery(const QuackScanBindData &bind_data, const Table
 	string query;
 
 	// Projection: select only the columns DuckDB actually needs in the output.
-	// With filter_prune, projection_ids indexes into column_ids for output columns only.
-	// Filter-only columns are in column_ids but NOT in projection_ids — they go in WHERE, not SELECT.
 	if (!input.column_indexes.empty()) {
 		for (auto &col_id : input.column_indexes) {
 			if (!query.empty()) {
@@ -257,49 +254,7 @@ static string BuildPushdownQuery(const QuackScanBindData &bind_data, const Table
 		}
 		query = "SELECT " + query + " ";
 	}
-	// 	vector<string> selected_columns;
-	// 	if (!input.projection_ids.empty()) {
-	// 		for (auto &proj_id : input.projection_ids) {
-	// 			auto col_id = input.column_ids[proj_id];
-	// 			if (IsRowIdColumnId(col_id) || col_id >= bind_data.column_names.size()) {
-	// 				continue;
-	// 			}
-	// 			selected_columns.push_back(KeywordHelper::WriteOptionallyQuoted(bind_data.column_names[col_id].GetIdentifierName()));
-	// 		}
-	// 	} else {
-	// 		for (auto &col_id : input.column_ids) {
-	// 			if (IsRowIdColumnId(col_id) || col_id >= bind_data.column_names.size()) {
-	// 				continue;
-	// 			}
-	// 			selected_columns.push_back(KeywordHelper::WriteOptionallyQuoted(bind_data.column_names[col_id].GetIdentifierName()));
-	// 		}
-	// 	}
-	// 	if (!selected_columns.empty()) {
-	// 		query = "SELECT " + StringUtil::Join(selected_columns, ", ") + " ";
-	// 	}
-	// }
 	query += StringUtil::Format("FROM %s", bind_data.qualified_table_name.ToString());
-	//
-	// // Filters: build WHERE clause from pushable filters
-	// if (input.filters) {
-	// 	vector<string> where_clauses;
-	// 	for (auto &entry : input.filters->filters) {
-	// 		auto col_idx = entry.second.GetIndex();
-	// 		if (col_idx >= bind_data.column_names.size()) {
-	// 			continue;
-	// 		}
-	// 		auto &filter = entry.Filter();
-	// 		if (!CanPushdownFilter(filter)) {
-	// 			continue;
-	// 		}
-	// 		auto col_name = KeywordHelper::WriteOptionallyQuoted(bind_data.column_names[col_idx].GetIdentifierName());
-	// 		where_clauses.push_back(filter.ToString(col_name));
-	// 	}
-	// 	if (!where_clauses.empty()) {
-	// 		query += " WHERE " + StringUtil::Join(where_clauses, " AND ");
-	// 	}
-	// }
-
 	return query;
 }
 

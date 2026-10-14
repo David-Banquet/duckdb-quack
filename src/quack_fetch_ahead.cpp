@@ -135,7 +135,7 @@ QuackFetcher::QuackFetcher(ClientContext &context, QuackClientConnection &connec
 	if (context.TryGetCurrentSetting("quack_debug_fetch_delay_ms", delay_val) && !delay_val.IsNull()) {
 		debug_delay_ms = delay_val.GetValue<uint64_t>();
 	}
-	// Claims start at 1: server-assigned FETCH batch indices are dense from 1 (the PREPARE batch is 0).
+	// Claims start at 1: FETCH batch indices are dense from 1 (the PREPARE batch is 0).
 	buffer = make_shared_ptr<QuackFetchBuffer>();
 
 	this->query_uuid = query_uuid;
