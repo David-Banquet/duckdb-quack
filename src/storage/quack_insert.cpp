@@ -128,7 +128,7 @@ SourceResultType QuackInsert::GetDataInternal(ExecutionContext &context, DataChu
 // Helpers
 //===--------------------------------------------------------------------===//
 string QuackInsert::GetName() const {
-	return table ? "RPC_INSERT" : "RPC_CREATE_TABLE_AS";
+	return table ? "QUACK_INSERT" : "QUACK_CREATE_TABLE_AS";
 }
 
 InsertionOrderPreservingMap<string> QuackInsert::ParamsToString() const {

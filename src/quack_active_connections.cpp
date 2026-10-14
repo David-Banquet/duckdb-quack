@@ -76,7 +76,7 @@ static void QuackActiveConnectionsScan(ClientContext &context, TableFunctionInpu
 	data.finished = true;
 }
 
-TableFunction QuacktivityFunction::GetFunction() {
+TableFunction QuackActiveConnectionsFunction::GetFunction() {
 	return TableFunction("quack_active_connections", {}, QuackActiveConnectionsScan, QuackActiveConnectionsBind);
 }
 
