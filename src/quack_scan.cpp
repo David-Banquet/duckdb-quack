@@ -528,12 +528,9 @@ static virtual_column_map_t QuackGetVirtualColumns(ClientContext &, optional_ptr
 	return result;
 }
 
-BindInfo QuackScanGetBindInfo(const optional_ptr<FunctionData> bind_data_p) {
-	auto &bind_data = bind_data_p->CastNoConst<QuackScanBindData>();
-	if (bind_data.table_entry) {
-		return BindInfo(*bind_data.table_entry);
-	}
-	return BindInfo(ScanType::EXTERNAL);
+optional_ptr<TableCatalogEntry> QuackScanGetTableEntry(optional_ptr<const FunctionData> bind_data_p) {
+	auto &bind_data = bind_data_p->Cast<QuackScanBindData>();
+	return bind_data.table_entry;
 }
 
 TableFunction QuackScanFunction::GetFunction() {
@@ -556,7 +553,7 @@ TableFunction QuackScanFunction::GetFunction() {
 	fun.serialize = QuackScanSerialize;
 	fun.deserialize = QuackScanDeserialize;
 	fun.get_virtual_columns = QuackGetVirtualColumns;
-	fun.get_bind_info = QuackScanGetBindInfo;
+	fun.get_table_entry = QuackScanGetTableEntry;
 	// fun.filter_pushdown = true;
 	// fun.filter_prune = true;
 	return fun;
@@ -577,7 +574,7 @@ TableFunction QuackScanByNameFunction::GetFunction() {
 	fun.serialize = QuackScanSerialize;
 	fun.deserialize = QuackScanDeserialize;
 	fun.get_virtual_columns = QuackGetVirtualColumns;
-	fun.get_bind_info = QuackScanGetBindInfo;
+	fun.get_table_entry = QuackScanGetTableEntry;
 	// fun.filter_pushdown = true;
 	// fun.filter_prune = true;
 	return fun;
