@@ -64,7 +64,7 @@ struct DetachedResultStream {
 };
 
 //! Error the buffer, so consumers and parked producers wake. Interrupt the query if it still runs,
-//! then join the producer. Call this WITHOUT the statement lock.
+//! then join the producer. Call this WITHOUT the execution lock.
 static void AbortDetachedStatement(QuackConnection &connection, DetachedResultStream detached, const string &reason) {
 	if (detached.stream) {
 		auto was_finished = detached.stream->buffer.Finished();
@@ -78,7 +78,7 @@ static void AbortDetachedStatement(QuackConnection &connection, DetachedResultSt
 	}
 }
 
-//! Stop and join the connection's fetch collector. Call this WITHOUT the statement lock.
+//! Stop and join the connection's fetch collector. Call this WITHOUT the execution lock.
 static void AbortStatement(QuackConnection &connection, const string &reason) {
 	DetachedResultStream detached;
 	{
@@ -121,7 +121,7 @@ static void SyncResultCache(QuackConnection &connection, QuackResultStream &stre
 	connection.SyncCachedRows();
 }
 
-//! Runs one client statement with the result collector installed. It holds the statement lock for the
+//! Runs one client statement with the result collector installed. It holds the execution lock for the
 //! full duration. A statement that returns rows fills the claim buffer in parallel. A statement that
 //! returns a count leaves the count in batch 1, through the fallback below.
 static void DriveQuery(QuackConnection &connection, shared_ptr<QuackResultStream> stream, string sql) {
@@ -664,7 +664,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		auto effective_sql = (authz.value.type().id() == LogicalTypeId::VARCHAR) ? authz.value.GetValue<string>()
 		                                                                         : prepare_request_message.Query();
 
-		// Stop the previous producer first. This joins its thread, so it frees the statement lock.
+		// Stop the previous producer first. This joins its thread, so it frees the execution lock.
 		AbortStatement(connection, "superseded by a new query");
 		{
 			std::unique_lock<std::mutex> lock(connection.lock);
@@ -778,7 +778,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		// false on an errored buffer would report a truncated result as complete.
 		auto needs_more_fetch = !stream->buffer.Exhausted() || stream->buffer.HasError();
 		if (!needs_more_fetch) {
-			connection.query_state = QuackQueryState::FINISHED;
+			connection.MarkQueryFinished();
 		}
 		return make_uniq<PrepareResponseMessage>(stream->types, stream->names, std::move(results), needs_more_fetch,
 		                                         prepare_request_message.QueryUUID());
@@ -867,9 +867,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 			if (status == QuackClaimPopStatus::FINISHED) {
 				// The stream ended below this index. The terminal response carries the total, so the
 				// client can check that it got every batch.
-				if (connection.query_state == QuackQueryState::ACTIVE) {
-					connection.query_state = QuackQueryState::FINISHED;
-				}
+				connection.MarkQueryFinished();
 				auto response = make_uniq<FetchResponseMessage>();
 				if (stream->announced_total.IsValid()) {
 					response->SetTotalBatches(stream->announced_total.GetIndex() - stream->prepare_batches);
