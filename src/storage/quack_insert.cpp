@@ -13,6 +13,7 @@
 #include "storage/quack_insert.hpp"
 #include "storage/quack_schema.hpp"
 #include "storage/quack_table.hpp"
+#include "storage/quack_transaction.hpp"
 
 using namespace duckdb;
 
@@ -73,6 +74,10 @@ unique_ptr<GlobalSinkState> QuackInsert::GetGlobalSinkState(ClientContext &conte
 	auto sql = StringUtil::Format(
 	    "INSERT INTO %s SELECT * FROM scan_data_from_quack_client(%s, NULL::%s, ordered := %s)", remote_name.ToString(),
 	    SQLString(stream_id), StructPrototype(types), order_mode != AppendOrderMode::UNORDERED ? "true" : "false");
+
+	if (!context.transaction.IsAutoCommit()) {
+		QuackTransaction::Get(context, quack_catalog).ForceStart();
+	}
 
 	// inline_rows = 0, because the statement waits for our batches and has no row to answer with. The
 	// scan registers the stream while it binds, so PREPARE must land before the first batch.
