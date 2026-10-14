@@ -144,7 +144,7 @@ optional_ptr<CatalogEntry> QuackSchemaCatalogEntry::LookupEntry(CatalogTransacti
 		return schemas->GetEntry(entry_name);
 	case CatalogType::TABLE_ENTRY:
 	case CatalogType::VIEW_ENTRY:
-		return tables->GetEntry(entry_name);
+		return tables->LookupEntry(entry_name);
 	default:
 		return nullptr;
 	}

@@ -1,0 +1,60 @@
+# name: test/sql/attach_unbindable_table.test
+# description: a server table the client cannot bind does not fail the whole ATTACH (#202)
+# group: [sql]
+
+include test/template/quack_setup.test_template
+
+# the CHECK calls a macro the server finds through its search path, so the client cannot bind the table
+statement ok quack_db:quack_server_con
+create schema s
+
+statement ok quack_db:quack_server_con
+create macro s.pos(x) as x > 0
+
+statement ok quack_db:quack_server_con
+set search_path = 's'
+
+statement ok quack_db:quack_server_con
+create table s.bad (i INT CHECK (pos(i)))
+
+statement ok quack_db:quack_server_con
+insert into s.bad values (7)
+
+statement ok quack_db:quack_server_con
+reset search_path
+
+statement ok quack_db:quack_server_con
+create table s.good as select 42 i
+
+statement ok
+attach {server} as rpc (token 'asdf')
+
+query I
+from rpc.s.good
+----
+42
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 'bad'
+----
+0
+
+# referencing it raises the original bind error
+statement error
+from rpc.s.bad
+----
+Scalar Function with name pos does not exist
+
+# a refresh loads the catalog the same way
+statement ok
+CALL quack_clear_cache()
+
+query I
+from rpc.s.good
+----
+42
+
+statement ok
+detach rpc
+
+include test/template/quack_teardown.test_template
