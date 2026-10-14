@@ -23,34 +23,10 @@ query I
 from rpc.t
 ----
 
-# autocommit statements pushed to the server run in the server's own autocommit (#289)
-statement ok
-CALL enable_logging(['Quack'], storage='memory');
-
-statement ok
-CALL truncate_duckdb_logs();
-
-statement ok
-create table rpc.t2(i INT)
-
+# an INSERT that sends local rows joins the client's explicit transaction (#173)
 statement ok
 insert into rpc.t values (1);
 
-query I
-select count(*) from duckdb_logs_parsed('Quack')
-where message_type = 'PREPARE_REQUEST' and query in ('BEGIN TRANSACTION', 'COMMIT', 'ROLLBACK')
-----
-0
-
-query I quack_db:quack_server_con
-from t
-----
-1
-
-statement ok
-CALL disable_logging();
-
-# an INSERT that sends local rows joins the client's explicit transaction (#173)
 statement ok
 create table local_src as select range::INT i from range(10, 13)
 

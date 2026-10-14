@@ -225,14 +225,14 @@ DatabaseSize QuackCatalog::GetDatabaseSize(ClientContext &context) {
 }
 
 unique_ptr<TableRef> QuackCatalog::RemoteExecute(ClientContext &context, unique_ptr<QueryNode> node) {
-	// only an explicit client transaction opens a remote one: autocommit writes commit at once
-	return CreateRemoteQueryRef(node->ToString(), false, !context.transaction.IsAutoCommit());
+	// attached-catalog path: a read of this catalog, so it joins the local transaction
+	return CreateRemoteQueryRef(node->ToString(), false, true);
 }
 
 unique_ptr<TableRef> QuackCatalog::RemoteExecute(ClientContext &context, unique_ptr<SQLStatement> statement) {
 	// a statement pushed down as a whole is DDL - it changes the catalog on the server, so the local
 	// snapshot of the remote catalog has to be reloaded once the statement has run
-	return CreateRemoteQueryRef(statement->ToString(), true, !context.transaction.IsAutoCommit());
+	return CreateRemoteQueryRef(statement->ToString(), true);
 }
 
 unique_ptr<TableRef> QuackCatalog::RemoteExecute(ClientContext &context, const string &sql) {
