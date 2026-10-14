@@ -21,7 +21,7 @@
 #include "quack_client.hpp"
 #include "quack_extension.hpp"
 #include "quack_log.hpp"
-#include "quack_rebalancer_sink.hpp"
+#include "quack_settings.hpp"
 #include "quack_scan.hpp"
 #include "quack_scan_from_client.hpp"
 #include "quack_secret.hpp"
@@ -237,10 +237,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                          "stressing out-of-order batch arrival on the server",
 	                          LogicalType::UBIGINT, Value::UBIGINT(0));
 
-	config.AddExtensionOption("quack_fetch_producer_buffer_bytes",
-	                          "Server-side cap on bytes buffered ahead by the fetch collector; the query "
-	                          "executor blocks when the client falls this far behind",
-	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_FETCH_PRODUCER_BUFFER_BYTES_DEFAULT));
+	config.AddExtensionOption("quack_server_stream_buffer_bytes",
+	                          "Server-side per-stream byte budget, at most a quarter of memory_limit: FETCH counts "
+	                          "serialized payload bytes, INSERT counts decoded chunk allocations; 0 disables the limit",
+	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_SERVER_STREAM_BUFFER_BYTES_DEFAULT), nullptr,
+	                          SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_server_max_connections",
 	                          "Maximum concurrent connections the RPC server accepts; beyond this new "
