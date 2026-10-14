@@ -10,7 +10,6 @@
 
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
-#include "duckdb/common/error_data.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
 
 namespace duckdb {
@@ -24,13 +23,8 @@ public:
 
 	static string GetLoadQuery();
 
-	//! GetEntry, but a remote table that failed to bind raises its bind error
-	optional_ptr<CatalogEntry> LookupEntry(const string &name);
-
 private:
 	QuackSchemaCatalogEntry &schema;
-	//! Remote tables the client could not bind; they are left out, so one of them does not fail the ATTACH
-	case_insensitive_map_t<ErrorData> bind_errors;
 };
 
 class QuackTableCatalogEntry : public TableCatalogEntry {

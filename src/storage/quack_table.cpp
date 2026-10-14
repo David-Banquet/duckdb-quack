@@ -2,6 +2,7 @@
 #include "storage/quack_schema.hpp"
 #include "storage/quack_table.hpp"
 #include "quack_scan.hpp"
+#include "duckdb/common/error_data.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/create_statement.hpp"
 #include "duckdb/parser/parsed_data/alter_info.hpp"
@@ -42,7 +43,7 @@ QuackTableSet::QuackTableSet(ClientContext &context, QuackSchemaCatalogEntry &pa
 			if (info->type != CatalogType::TABLE_ENTRY) {
 				throw InternalException("Expected a CREATE TABLE");
 			}
-			auto table_name = info->GetQualifiedName().Name().GetIdentifierName();
+			auto remote_name = parent.GetRemoteName(info->GetQualifiedName().Name()).ToString();
 			// Bind to resolve the types. SKIP_BINDING leaves the column DEFAULT expressions unbound:
 			// binding them here would resolve functions through the catalog we are still constructing,
 			// which is not registered yet - a computed DEFAULT (now(), 1 + 0, nextval(...)) then aborts
@@ -53,10 +54,13 @@ QuackTableSet::QuackTableSet(ClientContext &context, QuackSchemaCatalogEntry &pa
 			try {
 				bound_info = binder->BindCreateTableInfo(std::move(info), schema, AlterBindMode::SKIP_BINDING);
 			} catch (std::exception &ex) {
-				bind_errors[table_name] = ErrorData(BinderException(
-				    "Failed to bind remote table while attaching quack catalog \"%s\" (schema \"%s\"): %s\nSQL: %s",
-				    catalog.GetName().GetIdentifierName(), schema.name.GetIdentifierName(), ex.what(), sql));
-				continue;
+				throw BinderException(
+				    "Failed to bind remote table %s while attaching quack catalog \"%s\": %s\n"
+				    "Quack ATTACH requires all remote table definitions to bind on the client.\n"
+				    "For Iceberg tables listed with UNKNOWN column types, attach the Iceberg catalog on the server "
+				    "with TABLE_RESOLUTION 'eager'.\n"
+				    "Alternatively, use quack_query() to run SQL on the server without ATTACH.\nSQL: %s",
+				    remote_name, catalog.GetName().GetIdentifierName(), ErrorData(ex).Message(), sql);
 			}
 			auto table = make_uniq<QuackTableCatalogEntry>(catalog, parent, bound_info->Base());
 			entry = std::move(table);
@@ -81,17 +85,6 @@ QuackTableSet::QuackTableSet(ClientContext &context, QuackSchemaCatalogEntry &pa
 
 QuackTableSet::QuackTableSet(QuackSchemaCatalogEntry &parent)
     : QuackCatalogSet(parent.ParentCatalog().Cast<QuackCatalog>()), schema(parent) {
-}
-
-optional_ptr<CatalogEntry> QuackTableSet::LookupEntry(const string &name) {
-	auto entry = GetEntry(name);
-	if (!entry) {
-		auto bind_error = bind_errors.find(name);
-		if (bind_error != bind_errors.end()) {
-			bind_error->second.Throw();
-		}
-	}
-	return entry;
 }
 
 string QuackTableSet::GetLoadQuery() {
