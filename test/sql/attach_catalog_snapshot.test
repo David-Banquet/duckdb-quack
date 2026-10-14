@@ -10,12 +10,17 @@ attach {server} as rpc (token 'asdf')
 statement ok
 create table rpc.t as select 42 i
 
-# a rolled back DROP leaves the table visible to the next statement
+# a rolled back DROP leaves the table visible again, even after the transaction loaded the catalog without it
 statement ok
 BEGIN
 
 statement ok
 drop table rpc.t
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 't'
+----
+0
 
 statement ok
 ROLLBACK
@@ -37,6 +42,21 @@ create view rpc.ghost_view as select 1 i
 
 statement ok
 create schema rpc.ghost_schema
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 'ghost'
+----
+1
+
+query I
+select count(*) from duckdb_views() where database_name = 'rpc' and view_name = 'ghost_view'
+----
+1
+
+query I
+select count(*) from duckdb_schemas() where database_name = 'rpc' and schema_name = 'ghost_schema'
+----
+1
 
 statement ok
 ROLLBACK
@@ -68,6 +88,16 @@ drop table rpc.t
 
 statement ok
 create table rpc.ghost(i INT)
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 't'
+----
+0
+
+query I
+select count(*) from duckdb_tables() where database_name = 'rpc' and table_name = 'ghost'
+----
+1
 
 statement ok
 ROLLBACK
