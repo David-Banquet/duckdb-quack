@@ -196,7 +196,8 @@ static void LoadInternal(ExtensionLoader &loader) {
 	config.AddExtensionOption("quack_prepare_inline_rows",
 	                          "Rows returned inline in the PREPARE response before the remainder is left to "
 	                          "FETCH; drains whole batches, so it may overshoot to a batch boundary",
-	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_PREPARE_INLINE_ROWS_DEFAULT));
+	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_PREPARE_INLINE_ROWS_DEFAULT), nullptr,
+	                          SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_fetch_read_ahead",
 	                          "FETCH requests kept in flight ahead of the scan (0 = number of async threads)",
@@ -270,7 +271,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	config.AddExtensionOption("quack_enable_reconnects",
 	                          "Enable reconnect support (clients acknowledge results, the server caches the last "
 	                          "result until acknowledged)",
-	                          LogicalType::BOOLEAN, Value::BOOLEAN(false));
+	                          LogicalType::BOOLEAN, Value::BOOLEAN(false), nullptr, SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_cache_max_rows",
 	                          "Maximum rows the server retains in the result cache (0 = unlimited)",
@@ -337,8 +338,8 @@ std::string QuackExtension::Name() {
 }
 
 std::string QuackExtension::Version() const {
-#ifdef EXT_VERSION_RPC
-	return EXT_VERSION_RPC;
+#ifdef EXT_VERSION_QUACK
+	return EXT_VERSION_QUACK;
 #else
 	return "";
 #endif
