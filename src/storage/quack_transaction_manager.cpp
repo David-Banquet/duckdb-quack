@@ -1,6 +1,8 @@
 #include "storage/quack_transaction_manager.hpp"
 #include "storage/quack_catalog.hpp"
 
+#include <exception>
+
 namespace duckdb {
 
 QuackTransactionManager::QuackTransactionManager(AttachedDatabase &db_p, QuackCatalog &quack_catalog_p)
@@ -17,28 +19,45 @@ Transaction &QuackTransactionManager::StartTransaction(ClientContext &context) {
 }
 ErrorData QuackTransactionManager::CommitTransaction(ClientContext &context, Transaction &transaction) {
 	auto &quack_transaction = transaction.Cast<QuackTransaction>();
+	ErrorData error;
 	try {
 		quack_transaction.Commit();
+	} catch (const std::exception &ex) {
+		error = ErrorData(ex);
 	} catch (...) {
-		quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
-		throw;
+		error = ErrorData("Server COMMIT failed");
 	}
-	lock_guard<mutex> l(transaction_lock);
-	transactions.erase(transaction);
-	return ErrorData();
+	if (error.HasError()) {
+		quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
+	}
+	DestroyTransaction(transaction);
+	return error;
 }
 
 void QuackTransactionManager::RollbackTransaction(Transaction &transaction) {
 	auto &quack_transaction = transaction.Cast<QuackTransaction>();
+	std::exception_ptr failure;
 	try {
 		quack_transaction.Rollback();
 	} catch (...) {
-		quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
-		throw;
+		failure = std::current_exception();
 	}
 	quack_catalog.InvalidateIfChangedSince(quack_transaction.StartVersion());
-	lock_guard<mutex> l(transaction_lock);
-	transactions.erase(transaction);
+	DestroyTransaction(transaction);
+	if (failure) {
+		std::rethrow_exception(failure);
+	}
+}
+
+void QuackTransactionManager::DestroyTransaction(Transaction &transaction) {
+	unique_ptr<QuackTransaction> removed_transaction;
+	{
+		lock_guard<mutex> guard(transaction_lock);
+		auto entry = transactions.find(transaction);
+		D_ASSERT(entry != transactions.end());
+		removed_transaction = std::move(entry->second);
+		transactions.erase(entry);
+	}
 }
 
 void QuackTransactionManager::Checkpoint(ClientContext &context, bool force) {
