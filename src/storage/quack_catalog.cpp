@@ -162,10 +162,6 @@ idx_t QuackCatalog::InvalidatedVersion() {
 	return invalidated_version;
 }
 
-optional_idx QuackCatalog::GetCatalogVersion(ClientContext &context) {
-	return InvalidatedVersion();
-}
-
 bool QuackCatalog::ServesOwnConnection(ClientContext &context) {
 	auto session = QuackSessionState::Get(context);
 	return session && session->ConnectionId() == GetConnectionId();

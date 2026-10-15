@@ -57,7 +57,6 @@ public:
 	DatabaseSize GetDatabaseSize(ClientContext &context) override;
 	bool InMemory() override;
 	string GetDBPath() override;
-	optional_idx GetCatalogVersion(ClientContext &context) override;
 
 	bool Supports(RemoteCapability capability) const override {
 		switch (capability) {
