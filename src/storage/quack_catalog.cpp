@@ -23,6 +23,8 @@
 #include "storage/quack_transaction.hpp"
 #include "quack_session_state.hpp"
 
+#include <exception>
+
 // FIXME bunch of stuff copied from postgres scanner, can probably be simplified!
 
 namespace duckdb {
@@ -186,18 +188,18 @@ shared_ptr<QuackSchemaSet> QuackCatalog::AcquireSnapshot(ClientContext &context)
 		loading_context = &context;
 		guard.unlock();
 		shared_ptr<QuackSchemaSet> fresh;
-		ErrorData error;
+		std::exception_ptr failure;
 		try {
 			auto load_data = LoadCatalog(context);
 			fresh = make_shared_ptr<QuackSchemaSet>(context, *this, load_data);
-		} catch (std::exception &ex) {
-			error = ErrorData(ex);
+		} catch (...) {
+			failure = std::current_exception();
 		}
 		guard.lock();
 		loading_context = nullptr;
 		snapshot_loaded.notify_all();
-		if (error.HasError()) {
-			error.Throw();
+		if (failure) {
+			std::rethrow_exception(failure);
 		}
 		snapshot = std::move(fresh);
 		loaded_version = target_version;

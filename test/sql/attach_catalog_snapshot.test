@@ -230,6 +230,20 @@ from rpc.t
 ----
 Failed to bind remote table
 
+# Failed loads also release concurrent callers, which can retry the same generation.
+concurrentloop worker 0 2
+
+loop n 0 3
+
+statement error
+CALL quack_clear_cache()
+----
+Failed to bind remote table
+
+endloop
+
+endloop
+
 statement ok quack_db:quack_server_con
 drop schema bad_schema cascade
 
