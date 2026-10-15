@@ -240,7 +240,6 @@ private:
 	hugeint_t query_uuid;
 };
 
-// TODO this is where auth goes
 class ConnectionRequestMessage : public QuackMessage {
 public:
 	static constexpr MessageType TYPE = MessageType::CONNECTION_REQUEST;
@@ -341,7 +340,14 @@ public:
 	hugeint_t QueryUUID() const {
 		return query_uuid;
 	}
+	idx_t BatchIndex() const {
+		return batch_index;
+	}
+	idx_t AckIndex() const {
+		return ack_index;
+	}
 
+private:
 	hugeint_t query_uuid;
 	//! The dense batch index this request claims, from 1. Every request names its batch, so a
 	//! transport retry asks for the SAME batch.

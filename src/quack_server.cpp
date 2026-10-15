@@ -1,12 +1,8 @@
-#include "duckdb/common/render_tree.hpp"
-#include "duckdb/common/types/blob.hpp"
 #include "duckdb/logging/logger.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/valid_checker.hpp"
-#include "duckdb/parser/parsed_data/create_table_info.hpp"
-#include "duckdb/storage/temporary_file_manager.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 
 #include "duckdb/main/client_config.hpp"
@@ -17,7 +13,6 @@
 #include "quack_log.hpp"
 #include "quack_random.hpp"
 #include "quack_result_cache.hpp"
-#include "quack_storage.hpp"
 #include "quack_session_state.hpp"
 #include "quack_fetch_collector.hpp"
 #include "quack_settings.hpp"
@@ -64,7 +59,7 @@ struct DetachedResultStream {
 };
 
 //! Error the buffer, so consumers and parked producers wake. Interrupt the query if it still runs,
-//! then join the producer. Call this WITHOUT the statement lock.
+//! then join the producer. Call this WITHOUT the execution lock.
 static void AbortDetachedStatement(QuackConnection &connection, DetachedResultStream detached, const string &reason) {
 	if (detached.stream) {
 		auto was_finished = detached.stream->buffer.Finished();
@@ -78,7 +73,7 @@ static void AbortDetachedStatement(QuackConnection &connection, DetachedResultSt
 	}
 }
 
-//! Stop and join the connection's fetch collector. Call this WITHOUT the statement lock.
+//! Stop and join the connection's fetch collector. Call this WITHOUT the execution lock.
 static void AbortStatement(QuackConnection &connection, const string &reason) {
 	DetachedResultStream detached;
 	{
@@ -121,7 +116,7 @@ static void SyncResultCache(QuackConnection &connection, QuackResultStream &stre
 	connection.SyncCachedRows();
 }
 
-//! Runs one client statement with the result collector installed. It holds the statement lock for the
+//! Runs one client statement with the result collector installed. It holds the execution lock for the
 //! full duration. A statement that returns rows fills the claim buffer in parallel. A statement that
 //! returns a count leaves the count in batch 1, through the fallback below.
 static void DriveQuery(QuackConnection &connection, shared_ptr<QuackResultStream> stream, string sql) {
@@ -664,7 +659,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		auto effective_sql = (authz.value.type().id() == LogicalTypeId::VARCHAR) ? authz.value.GetValue<string>()
 		                                                                         : prepare_request_message.Query();
 
-		// Stop the previous producer first. This joins its thread, so it frees the statement lock.
+		// Stop the previous producer first. This joins its thread, so it frees the execution lock.
 		AbortStatement(connection, "superseded by a new query");
 		{
 			std::unique_lock<std::mutex> lock(connection.lock);
@@ -778,7 +773,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		// false on an errored buffer would report a truncated result as complete.
 		auto needs_more_fetch = !stream->buffer.Exhausted() || stream->buffer.HasError();
 		if (!needs_more_fetch) {
-			connection.query_state = QuackQueryState::FINISHED;
+			connection.MarkQueryFinished();
 		}
 		return make_uniq<PrepareResponseMessage>(stream->types, stream->names, std::move(results), needs_more_fetch,
 		                                         prepare_request_message.QueryUUID());
@@ -804,14 +799,14 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 		if (!stream || stream_uuid != fetch_request_message.QueryUUID()) {
 			return make_uniq<ErrorResponse>("Result has been closed");
 		}
-		if (fetch_request_message.batch_index == 0) {
+		if (fetch_request_message.BatchIndex() == 0) {
 			return make_uniq<ErrorResponse>("FETCH_REQUEST is missing its batch index");
 		}
 
 		// The request names its batch, so add back the batches PREPARE consumed inline. Served
 		// payloads stay until the client acks them, so a transport retry gets the SAME batch.
-		auto dense_index = fetch_request_message.batch_index + stream->prepare_batches;
-		auto dense_ack = fetch_request_message.ack_index + stream->prepare_batches;
+		auto dense_index = fetch_request_message.BatchIndex() + stream->prepare_batches;
+		auto dense_ack = fetch_request_message.AckIndex() + stream->prepare_batches;
 		{
 			lock_guard<mutex> guard(stream->serve_lock);
 			// The client has everything up to the ack and cannot ask for it again. A result cache
@@ -845,7 +840,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 						// write the header with the client-visible index, then keep the payload for a retry
 						FetchResponseMessage header_message;
 						header_message.SetChunkCount(entry.chunk_count);
-						header_message.SetBatchIndex(fetch_request_message.batch_index);
+						header_message.SetBatchIndex(fetch_request_message.BatchIndex());
 						served_start = QuackPrependHeader(*entry.payload, header_message);
 						shared_ptr<MemoryStream> payload(std::move(entry.payload));
 						stream->served.emplace(dense_index,
@@ -867,9 +862,7 @@ unique_ptr<QuackMessage> QuackServer::HandleMessageInternal(DatabaseInstance &db
 			if (status == QuackClaimPopStatus::FINISHED) {
 				// The stream ended below this index. The terminal response carries the total, so the
 				// client can check that it got every batch.
-				if (connection.query_state == QuackQueryState::ACTIVE) {
-					connection.query_state = QuackQueryState::FINISHED;
-				}
+				connection.MarkQueryFinished();
 				auto response = make_uniq<FetchResponseMessage>();
 				if (stream->announced_total.IsValid()) {
 					response->SetTotalBatches(stream->announced_total.GetIndex() - stream->prepare_batches);

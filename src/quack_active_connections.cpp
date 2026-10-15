@@ -2,7 +2,6 @@
 #include "duckdb.hpp"
 #include "duckdb/main/database.hpp"
 
-#include "quack_startstop.hpp"
 #include "quack_storage.hpp"
 
 namespace duckdb {
@@ -17,8 +16,6 @@ static string QueryStateToString(QuackQueryState state) {
 		return "finished";
 	case QuackQueryState::CANCELLED:
 		return "cancelled";
-	case QuackQueryState::QUACK_ERROR:
-		return "error";
 	default:
 		return "unknown";
 	}
@@ -76,7 +73,7 @@ static void QuackActiveConnectionsScan(ClientContext &context, TableFunctionInpu
 	data.finished = true;
 }
 
-TableFunction QuacktivityFunction::GetFunction() {
+TableFunction QuackActiveConnectionsFunction::GetFunction() {
 	return TableFunction("quack_active_connections", {}, QuackActiveConnectionsScan, QuackActiveConnectionsBind);
 }
 

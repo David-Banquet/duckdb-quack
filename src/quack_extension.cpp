@@ -15,7 +15,7 @@
 #include "duckdb/storage/storage_extension.hpp"
 #include "storage/quack_optimizer.hpp"
 
-#include "include/storage/quack_catalog.hpp"
+#include "storage/quack_catalog.hpp"
 #include "quack_active_connections.hpp"
 #include "quack_clear_cache.hpp"
 #include "quack_client.hpp"
@@ -29,9 +29,6 @@
 #include "quack_startstop.hpp"
 #include "quack_storage.hpp"
 #include "quack_uri.hpp"
-#include "include/quack_startstop.hpp"
-#include "include/quack_storage.hpp"
-#include "include/quack_uri.hpp"
 
 namespace duckdb {
 
@@ -154,7 +151,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	loader.RegisterFunction(QuackGenerateKeysFunction::GetFunction());
 	loader.RegisterFunction(QuackClearCacheFunction::GetFunction());
 	loader.RegisterFunction(GetQuackIdentifyFunction());
-	loader.RegisterFunction(QuacktivityFunction::GetFunction());
+	loader.RegisterFunction(QuackActiveConnectionsFunction::GetFunction());
 
 	// the default authentication function
 	ScalarFunction quack_check_token("quack_check_token",
@@ -196,7 +193,8 @@ static void LoadInternal(ExtensionLoader &loader) {
 	config.AddExtensionOption("quack_prepare_inline_rows",
 	                          "Rows returned inline in the PREPARE response before the remainder is left to "
 	                          "FETCH; drains whole batches, so it may overshoot to a batch boundary",
-	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_PREPARE_INLINE_ROWS_DEFAULT));
+	                          LogicalType::UBIGINT, Value::UBIGINT(QUACK_PREPARE_INLINE_ROWS_DEFAULT), nullptr,
+	                          SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_fetch_read_ahead",
 	                          "FETCH requests kept in flight ahead of the scan (0 = number of async threads)",
@@ -270,7 +268,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	config.AddExtensionOption("quack_enable_reconnects",
 	                          "Enable reconnect support (clients acknowledge results, the server caches the last "
 	                          "result until acknowledged)",
-	                          LogicalType::BOOLEAN, Value::BOOLEAN(false));
+	                          LogicalType::BOOLEAN, Value::BOOLEAN(false), nullptr, SetScope::GLOBAL);
 
 	config.AddExtensionOption("quack_cache_max_rows",
 	                          "Maximum rows the server retains in the result cache (0 = unlimited)",
@@ -337,8 +335,8 @@ std::string QuackExtension::Name() {
 }
 
 std::string QuackExtension::Version() const {
-#ifdef EXT_VERSION_RPC
-	return EXT_VERSION_RPC;
+#ifdef EXT_VERSION_QUACK
+	return EXT_VERSION_QUACK;
 #else
 	return "";
 #endif
