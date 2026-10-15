@@ -6,7 +6,7 @@ require quack
 
 require httpfs
 
-foreach server 'quack:localhost'
+foreach server 'quack:localhost:20116'
 
 statement ok con1
 call quack_serve({server}, token='asdf');
@@ -17,7 +17,7 @@ attach {server} as my_remote (token 'asdf');
 query III
 select database_name, path, type from duckdb_databases() where database_name='my_remote';
 ----
-my_remote	quack:localhost	quack
+my_remote	quack:localhost:20116	quack
 
 statement ok con2
 detach my_remote;
