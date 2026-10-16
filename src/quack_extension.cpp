@@ -141,49 +141,6 @@ static TableFunction GetQuackIdentifyFunction() {
 static void LoadInternal(ExtensionLoader &loader) {
 	loader.SetDescription("The DuckDB 'Quack' Client/Server Protocol");
 
-	loader.RegisterFunction(QuackScanFunction::GetFunction());
-	loader.RegisterFunction(QuackScanByNameFunction::GetFunction());
-	loader.RegisterFunction(QuackScanFromClientFunction::GetFunction());
-	loader.RegisterFunction(QuackServeFunction::GetFunction());
-	loader.RegisterFunction(QuackCancelFunction::GetFunction());
-	loader.RegisterFunction(QuackStopFunction::GetFunction());
-	loader.RegisterFunction(QuackServerListFunction::GetFunction());
-	loader.RegisterFunction(QuackGenerateKeysFunction::GetFunction());
-	loader.RegisterFunction(QuackClearCacheFunction::GetFunction());
-	loader.RegisterFunction(GetQuackIdentifyFunction());
-	loader.RegisterFunction(QuackActiveConnectionsFunction::GetFunction());
-
-	// the default authentication function
-	ScalarFunction quack_check_token("quack_check_token",
-	                                 {/* connection id */ LogicalType::VARCHAR, /* auth string */ LogicalType::VARCHAR,
-	                                  /* token */ LogicalType::VARCHAR},
-	                                 LogicalType::BOOLEAN, QuackAuthToken);
-	quack_check_token.SetVolatile();
-	loader.RegisterFunction(quack_check_token);
-
-	ScalarFunction rpc_authorization(
-	    "quack_nop_authorization", {/* connection id */ LogicalType::VARCHAR, /* query string */ LogicalType::VARCHAR},
-	    LogicalType::VARCHAR, QuackDummyAuthorization);
-	rpc_authorization.SetVolatile();
-	loader.RegisterFunction(rpc_authorization);
-
-	ScalarFunction quack_connection_id("quack_connection_id", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
-	                                   QuackConnectionIdFunc);
-	quack_connection_id.SetVolatile();
-	loader.RegisterFunction(quack_connection_id);
-
-	loader.RegisterFunction(QuackParseUriFunction::GetFunction());
-
-	RegisterQuackSecretType(loader);
-
-	loader.GetDatabaseInstance().GetLogManager().RegisterLogType(make_uniq<QuackLogType>());
-
-	// (ab)use storage extension info to store our state
-	auto ext = duckdb::make_shared_ptr<QuackStorageExtension>();
-	ext->storage_info = duckdb::make_uniq<QuackStorageExtensionInfo>();
-	StorageExtension::Register(loader.GetDatabaseInstance().config, QuackStorageExtensionInfo::STORAGE_EXTENSION_KEY,
-	                           ext);
-
 	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
 	config.AddExtensionOption("quack_authentication_function", "Name of a callback function for authentication",
 	                          LogicalType::VARCHAR, Value("quack_check_token"), nullptr, SetScope::GLOBAL);
@@ -294,6 +251,53 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                          Value(""));
 	config.AddExtensionOption("whoami_meta", "Provider-specific metadata as JSON", LogicalType::VARCHAR, Value("{}"));
 
+	loader.GetDatabaseInstance().GetLogManager().RegisterLogType(make_uniq<QuackLogType>());
+
+	OptimizerExtension quack_optimizer;
+	quack_optimizer.optimize_function = QuackOptimizer::Optimize;
+	OptimizerExtension::Register(config, std::move(quack_optimizer));
+
+	RegisterQuackSecretType(loader);
+
+	// the default authentication function
+	ScalarFunction quack_check_token("quack_check_token",
+	                                 {/* connection id */ LogicalType::VARCHAR, /* auth string */ LogicalType::VARCHAR,
+	                                  /* token */ LogicalType::VARCHAR},
+	                                 LogicalType::BOOLEAN, QuackAuthToken);
+	quack_check_token.SetVolatile();
+	loader.RegisterFunction(quack_check_token);
+
+	ScalarFunction rpc_authorization(
+	    "quack_nop_authorization", {/* connection id */ LogicalType::VARCHAR, /* query string */ LogicalType::VARCHAR},
+	    LogicalType::VARCHAR, QuackDummyAuthorization);
+	rpc_authorization.SetVolatile();
+	loader.RegisterFunction(rpc_authorization);
+
+	ScalarFunction quack_connection_id("quack_connection_id", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                   QuackConnectionIdFunc);
+	quack_connection_id.SetVolatile();
+	loader.RegisterFunction(quack_connection_id);
+
+	loader.RegisterFunction(QuackScanFunction::GetFunction());
+	loader.RegisterFunction(QuackScanByNameFunction::GetFunction());
+	loader.RegisterFunction(QuackScanFromClientFunction::GetFunction());
+	loader.RegisterFunction(QuackServeFunction::GetFunction());
+	loader.RegisterFunction(QuackCancelFunction::GetFunction());
+	loader.RegisterFunction(QuackStopFunction::GetFunction());
+	loader.RegisterFunction(QuackServerListFunction::GetFunction());
+	loader.RegisterFunction(QuackGenerateKeysFunction::GetFunction());
+	loader.RegisterFunction(QuackClearCacheFunction::GetFunction());
+	loader.RegisterFunction(GetQuackIdentifyFunction());
+	loader.RegisterFunction(QuackActiveConnectionsFunction::GetFunction());
+
+	loader.RegisterFunction(QuackParseUriFunction::GetFunction());
+
+	// (ab)use storage extension info to store our state
+	auto ext = duckdb::make_shared_ptr<QuackStorageExtension>();
+	ext->storage_info = duckdb::make_uniq<QuackStorageExtensionInfo>();
+	StorageExtension::Register(loader.GetDatabaseInstance().config, QuackStorageExtensionInfo::STORAGE_EXTENSION_KEY,
+	                           ext);
+
 	// whoami() contract — register the table macro directly via the default-table-macro
 	// machinery so function resolution in the body is deferred to invocation time
 	// (avoids the get_current_timestamp / core_functions chicken-and-egg).
@@ -321,10 +325,6 @@ static void LoadInternal(ExtensionLoader &loader) {
 	};
 	auto whoami_info = DefaultTableFunctionGenerator::CreateTableMacroInfo(whoami_macro);
 	loader.RegisterFunction(*whoami_info);
-
-	OptimizerExtension quack_optimizer;
-	quack_optimizer.optimize_function = QuackOptimizer::Optimize;
-	OptimizerExtension::Register(config, std::move(quack_optimizer));
 }
 
 void QuackExtension::Load(ExtensionLoader &loader) {
