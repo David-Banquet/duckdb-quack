@@ -103,6 +103,12 @@ static bool IsBareQuackPath(const string &uri) {
 static unique_ptr<Catalog> QuackAttach(optional_ptr<StorageExtensionInfo> storage_info, ClientContext &context,
                                        AttachedDatabase &db, const string &name, AttachInfo &info,
                                        AttachOptions &attach_options) {
+	// writes are pushed down to the server as whole statements, so a read-only attach cannot be enforced yet
+	if (attach_options.access_mode == AccessMode::READ_ONLY) {
+		throw NotImplementedException("READ_ONLY is not currently supported for Quack databases - attach \"%s\" "
+		                              "without the READ_ONLY option, or with (READ_WRITE)",
+		                              name);
+	}
 	// info.path may or may not already carry the "quack:" prefix.
 	auto uri = StringUtil::StartsWith(info.path, "quack:") ? info.path : "quack:" + info.path;
 
