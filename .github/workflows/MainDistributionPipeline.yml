@@ -46,7 +46,7 @@ jobs:
     with:
       ci_tools_version: main
       extension_name: quack
-      deploy_latest: ${{ startsWith(github.ref, 'refs/heads/v') }}
+      deploy_latest: ${{ startsWith(github.ref, 'refs/heads/v') || github.ref == 'refs/heads/main' }}
       deploy_versioned: ${{ startsWith(github.ref, 'refs/heads/v') || github.ref == 'refs/heads/main' }}
 
   code-quality-check:
